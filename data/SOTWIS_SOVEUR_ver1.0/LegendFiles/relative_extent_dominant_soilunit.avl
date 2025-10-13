@@ -1,0 +1,187 @@
+/3.2
+(ODB.1
+	FirstRootClassName:	"Legend"
+	Roots:	2
+	Version:	32
+)
+
+(Legend.2
+	SymType:	0x02
+	LegType:	0x02
+	ClassType:	0x03
+	FieldNames:	3
+	Symbols:	4
+	Class:	25
+	Class:	26
+	Class:	27
+	Class:	28
+	Class:	29
+	StdDevs:	1.00000000000000
+	NullSym:	21
+	NullValues:	30
+	StatValues:	31
+)
+
+(AVStr.3
+	S:	"Prop1"
+)
+
+(SymList.4
+	Child:	5
+	Child:	9
+	Child:	13
+	Child:	17
+	Child:	21
+)
+
+(BShSym.5
+	Color:	6
+	Outline:	1
+	OutlineColor:	7
+	OutlineWidth:	0.10000000000000
+	BgColor:	8
+)
+
+(TClr.6
+	Red:	0xfeff
+	Green:	0xfa54
+	Blue:	0xe11d
+)
+
+(TClr.7
+)
+
+(TClr.8
+	Red:	0xffff
+	Green:	0xffff
+	Blue:	0xffff
+)
+
+(BShSym.9
+	Color:	10
+	Outline:	1
+	OutlineColor:	11
+	OutlineWidth:	0.10000000000000
+	BgColor:	12
+)
+
+(TClr.10
+	Red:	0xfeff
+	Green:	0xe7a4
+	Blue:	0x6995
+)
+
+(TClr.11
+)
+
+(TClr.12
+	Red:	0xffff
+	Green:	0xffff
+	Blue:	0xffff
+)
+
+(BShSym.13
+	Color:	14
+	Outline:	1
+	OutlineColor:	15
+	OutlineWidth:	0.10000000000000
+	BgColor:	16
+)
+
+(TClr.14
+	Red:	0xeaff
+	Green:	0xc668
+	Blue:	0xea
+)
+
+(TClr.15
+)
+
+(TClr.16
+	Red:	0xffff
+	Green:	0xffff
+	Blue:	0xffff
+)
+
+(BShSym.17
+	Color:	18
+	Outline:	1
+	OutlineColor:	19
+	OutlineWidth:	0.10000000000000
+	BgColor:	20
+)
+
+(TClr.18
+	Red:	0x86ff
+	Green:	0x71fa
+	Blue:	0x86
+)
+
+(TClr.19
+)
+
+(TClr.20
+	Red:	0xffff
+	Green:	0xffff
+	Blue:	0xffff
+)
+
+(BShSym.21
+	Color:	22
+	Outline:	1
+	OutlineColor:	23
+	OutlineWidth:	0.10000000000000
+	BgColor:	24
+)
+
+(TClr.22
+	Name:	"Transparent"
+)
+
+(TClr.23
+	Name:	"Transparent"
+)
+
+(TClr.24
+	Red:	0xffff
+	Green:	0xffff
+	Blue:	0xffff
+)
+
+(LClass.25
+	Label:	"15 - 35"
+	MinNum:	15.00000000000000
+	MaxNum:	35.00000000000000
+)
+
+(LClass.26
+	Label:	"35 - 50"
+	MinNum:	35.00000000000000
+	MaxNum:	50.00000000000000
+)
+
+(LClass.27
+	Label:	"50 - 75"
+	MinNum:	50.00000000000000
+	MaxNum:	75.00000000000000
+)
+
+(LClass.28
+	Label:	"75 - 100"
+	MinNum:	75.00000000000000
+	MaxNum:	100.00000000000000
+)
+
+(LClass.29
+	IsNoData:	1
+	Label:	"No Data"
+	MaxNum:	-1.00000000000000
+	Precision:	-3
+)
+
+(NameDict.30
+)
+
+(NameDict.31
+)
+

@@ -1,0 +1,15 @@
+pandas 
+numpy 
+requests 
+tensorflow 
+matplotlib 
+spei 
+cdsapi
+xarray 
+netcdf4 
+ecmwf-api-client
+geopandas
+dbfread
+pathlib
+scikit-learn
+scipy

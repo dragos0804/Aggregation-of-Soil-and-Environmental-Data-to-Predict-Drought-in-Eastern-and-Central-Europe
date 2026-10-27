@@ -13,3 +13,6 @@ dbfread
 pathlib
 scikit-learn
 scipy
+tabulate
+statsmodels
+python-dotenv

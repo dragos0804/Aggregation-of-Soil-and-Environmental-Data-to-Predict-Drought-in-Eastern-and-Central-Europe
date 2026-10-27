@@ -1,0 +1,12 @@
+.env
+.env.*
+venv/
+__pycache__/
+*.pyc
+/data/
+/src/*.csv
+/results/logs/
+/results/*.log
+/results/*checkpoint*
+/results/*_backup.*
+/results/pre_rerun_backup*/

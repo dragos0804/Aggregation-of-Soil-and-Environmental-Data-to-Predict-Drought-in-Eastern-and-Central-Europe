@@ -9,7 +9,7 @@ import warnings
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
-from sklearn.metrics import classification_report, accuracy_score, precision_recall_fscore_support
+from sklearn.metrics import classification_report, accuracy_score, precision_recall_fscore_support, confusion_matrix
 from sklearn.utils import class_weight
 
 # TensorFlow imports
@@ -36,6 +36,7 @@ TARGET_DATA_PATH = '../data/intermediary_steps/complete_spei_benchmark.csv'
 SPEI_COLUMN_NAME = 'DROUGHT_INDEX' 
 CHRONOLOGICAL_SPLIT_RATIO = 0.8
 LSTM_SEQUENCE_LENGTH = 14
+MULTICLASS_REPORT_PATH = '../results/multiclass_experimental_report.md'
 
 # --- Main Script Functions ---
 
@@ -135,6 +136,37 @@ def get_features_and_target(df):
     
     return X, y
 
+def build_multiclass_evaluation(y_true, y_pred, target_names):
+    report_dict = classification_report(
+        y_true,
+        y_pred,
+        target_names=target_names,
+        zero_division=0,
+        output_dict=True
+    )
+    matrix = confusion_matrix(y_true, y_pred, labels=list(range(len(target_names))))
+    return report_dict, matrix
+
+def multiclass_matrix_to_markdown(matrix, target_names):
+    matrix_df = pd.DataFrame(
+        matrix,
+        index=[f'Actual {name}' for name in target_names],
+        columns=[f'Pred {name}' for name in target_names]
+    )
+    return matrix_df.to_markdown()
+
+def multiclass_report_to_markdown(report_dict, target_names):
+    rows = []
+    for class_name in target_names:
+        rows.append({
+            'Class': class_name,
+            'Precision': report_dict[class_name]['precision'],
+            'Recall': report_dict[class_name]['recall'],
+            'F1-Score': report_dict[class_name]['f1-score'],
+            'Support': int(report_dict[class_name]['support'])
+        })
+    return pd.DataFrame(rows).round(4).to_markdown(index=False)
+
 def run_static_models(X, y):
     """Trains static models for multi-class classification with balanced weights."""
     print("\n--- 3. Training Static Models (Multi-Class) ---")
@@ -164,7 +196,16 @@ def run_static_models(X, y):
         # Weighted average is best for imbalanced multi-class summary
         precision, recall, f1, _ = precision_recall_fscore_support(y_test, y_pred, average='weighted', zero_division=0)
         accuracy = accuracy_score(y_test, y_pred)
-        results[name] = { "Accuracy": accuracy, "Precision": precision, "Recall": recall, "F1-Score": f1, "Training Time (s)": end_time - start_time }
+        report_dict, matrix = build_multiclass_evaluation(y_test, y_pred, target_names)
+        results[name] = {
+            "Accuracy": accuracy,
+            "Precision": precision,
+            "Recall": recall,
+            "F1-Score": f1,
+            "Training Time (s)": end_time - start_time,
+            "class_report": report_dict,
+            "confusion_matrix": matrix.tolist()
+        }
     return results
 
 def create_sequences(X, y, sequence_length):
@@ -242,7 +283,18 @@ def run_lstm_model(X, y, sequence_length):
     print(classification_report(y_test_seq, y_pred, target_names=target_names, zero_division=0))
     precision, recall, f1, _ = precision_recall_fscore_support(y_test_seq, y_pred, average='weighted', zero_division=0)
     accuracy = accuracy_score(y_test_seq, y_pred)
-    return { "LSTM": { "Accuracy": accuracy, "Precision": precision, "Recall": recall, "F1-Score": f1, "Training Time (s)": end_time - start_time } }
+    report_dict, matrix = build_multiclass_evaluation(y_test_seq, y_pred, target_names)
+    return {
+        "LSTM": {
+            "Accuracy": accuracy,
+            "Precision": precision,
+            "Recall": recall,
+            "F1-Score": f1,
+            "Training Time (s)": end_time - start_time,
+            "class_report": report_dict,
+            "confusion_matrix": matrix.tolist()
+        }
+    }
 
 # --- Main Execution ---
 if __name__ == "__main__":
@@ -255,11 +307,37 @@ if __name__ == "__main__":
 
         print("\n--- 5. Consolidated Experiment Results ---")
         all_results = {**static_results, **lstm_results}
-        results_df = pd.DataFrame.from_dict(all_results, orient='index')
+        summary_results = {
+            model_name: {k: v for k, v in metrics.items() if k not in ['class_report', 'confusion_matrix']}
+            for model_name, metrics in all_results.items()
+        }
+        results_df = pd.DataFrame.from_dict(summary_results, orient='index')
         
         if not results_df.empty:
             results_df = results_df.round(4)
             print("\nThe following table can be used in your paper's results section:")
             print(results_df.to_markdown(index=True))
+
+            detailed_sections = []
+            target_names = ['No Drought', 'Moderate', 'Severe', 'Extreme']
+            for model_name, metrics in all_results.items():
+                matrix_md = multiclass_matrix_to_markdown(np.array(metrics['confusion_matrix']), target_names)
+                report_md = multiclass_report_to_markdown(metrics['class_report'], target_names)
+                detailed_sections.append(
+                    f"## {model_name}\n\n"
+                    f"Confusion matrix:\n\n{matrix_md}\n\n"
+                    f"Per-class metrics:\n\n{report_md}\n"
+                )
+
+            report_content = (
+                "# Multi-Class Experimental Results\n\n"
+                "The table below summarizes the chronological-test performance of the three classifiers for multi-class drought severity prediction.\n\n"
+                f"{results_df.to_markdown(index=True)}\n\n"
+                "# Detailed Confusion Matrices and Per-Class Metrics\n\n"
+                + "\n".join(detailed_sections)
+            )
+            with open(MULTICLASS_REPORT_PATH, 'w') as report_file:
+                report_file.write(report_content)
+            print(f"\nDetailed multi-class report saved to: {MULTICLASS_REPORT_PATH}")
     else:
         print("\nHalting execution due to errors in data preparation.")

@@ -16,70 +16,90 @@ def merge_datasets():
     script_dir = os.path.dirname(__file__)
     data_dir = os.path.join(script_dir, '..', 'data', 'intermediary_steps')
     final_data_dir = os.path.join(script_dir, '..', 'data')
+    start_year = int(os.getenv('DATA_START_YEAR', '1990'))
+    end_year = int(os.getenv('DATA_END_YEAR', '2024'))
     sotwis_path = os.path.join(data_dir, 'synthetically_enhanced_sotwis.csv')
-    nasa_path = os.path.join(data_dir, 'complete_nasa_power_data_1990_to_2013.csv') # Using the output from our first task
-    output_path = os.path.join(final_data_dir, 'complete_integrated_dataset_1990_to_2013.csv')
+    nasa_path = os.getenv(
+        'NASA_DATA_PATH',
+        os.path.join(data_dir, f'complete_nasa_power_data_{start_year}_to_{end_year}.csv'),
+    )
+    output_path = os.getenv(
+        'FUSED_DATA_PATH',
+        os.path.join(final_data_dir, f'complete_integrated_dataset_{start_year}_to_{end_year}.csv'),
+    )
+    partial_output_path = f'{output_path}.part'
+    chunk_size = int(os.getenv('NASA_MERGE_CHUNK_SIZE', '500000'))
     
     # --- Load Data ---
     print("Loading datasets...")
     try:
         sotwis_df = pd.read_csv(sotwis_path)
-        nasa_df = pd.read_csv(nasa_path)
     except FileNotFoundError as e:
         print(f"ERROR: Could not find input file. Make sure previous steps have run successfully. Details: {e}")
         return
+    if not os.path.exists(nasa_path):
+        print(f"ERROR: Could not find NASA POWER input file: {nasa_path}")
+        return
         
     # --- Prepare for Merge ---
-    # We will create an 'assignment' column in nasa_df to store the index of the matching sotwis row
-    nasa_df['sotwis_index'] = -1
-    
-    # Convert to NumPy for highly efficient comparison
+    # Compute assignments only for unique coordinate pairs, then map back.
     sotwis_bounds = sotwis_df[['BOTTOM_LEFT_LAT', 'UPPER_RIGHT_LAT', 'BOTTOM_LEFT_LON', 'UPPER_RIGHT_LON']].values
-    nasa_coords = nasa_df[['LAT', 'LON']].values
-    
-    # --- Perform Spatial Join ---
-    print(f"Performing spatial join for {len(nasa_df)} NASA POWER records...")
-    sotwis_indices = []
-    
-    # This loop finds which SOTWIS box each NASA point belongs to
-    for i in range(len(nasa_coords)):
-        lat, lon = nasa_coords[i]
-        
-        # Use a vectorized boolean mask to find the matching box
-        # This is much faster than a nested loop
-        matches = (
-            (lat >= sotwis_bounds[:, 0]) & (lat <= sotwis_bounds[:, 1]) &
-            (lon >= sotwis_bounds[:, 2]) & (lon <= sotwis_bounds[:, 3])
-        )
-        
-        # Find the index of the first match
-        match_indices = np.where(matches)[0]
-        
-        if len(match_indices) > 0:
-            sotwis_indices.append(match_indices[0])
-        else:
-            sotwis_indices.append(np.nan) # Mark as NaN if no box found
 
-    nasa_df['sotwis_index'] = sotwis_indices
-    
-    # Drop NASA points that didn't fall into any SOTWIS box
-    initial_rows = len(nasa_df)
-    nasa_df.dropna(subset=['sotwis_index'], inplace=True)
-    nasa_df['sotwis_index'] = nasa_df['sotwis_index'].astype(int)
-    print(f"Join complete. {len(nasa_df)} of {initial_rows} records matched.")
-    
-    # --- Merge DataFrames ---
-    # Merge using the found indices
-    # We drop the SOTWIS lat/lon columns to avoid redundancy
     sotwis_to_merge = sotwis_df.drop(columns=['BOTTOM_LEFT_LAT', 'UPPER_RIGHT_LAT', 'BOTTOM_LEFT_LON', 'UPPER_RIGHT_LON'])
-    merged_df = nasa_df.merge(sotwis_to_merge, left_on='sotwis_index', right_index=True)
-    
-    # Clean up final dataframe
-    merged_df.drop(columns=['sotwis_index'], inplace=True)
+    coordinate_map = {}
+    input_rows = 0
+    matched_rows = 0
+    wrote_header = False
+    if os.path.exists(partial_output_path):
+        os.remove(partial_output_path)
 
-    # --- Save ---
-    merged_df.to_csv(output_path, index=False)
-    print(f"✅ Integrated dataset created successfully and saved to '{output_path}'")
+    print(f"Streaming NASA POWER data in chunks of {chunk_size:,} rows...")
+    try:
+        for chunk_number, nasa_chunk in enumerate(pd.read_csv(nasa_path, chunksize=chunk_size), start=1):
+            input_rows += len(nasa_chunk)
+            unique_coords = nasa_chunk[['LAT', 'LON']].drop_duplicates().itertuples(index=False, name=None)
+            for lat, lon in unique_coords:
+                key = (lat, lon)
+                if key in coordinate_map:
+                    continue
+                matches = (
+                    (lat >= sotwis_bounds[:, 0]) & (lat <= sotwis_bounds[:, 1]) &
+                    (lon >= sotwis_bounds[:, 2]) & (lon <= sotwis_bounds[:, 3])
+                )
+                match_indices = np.where(matches)[0]
+                coordinate_map[key] = match_indices[0] if len(match_indices) > 0 else np.nan
+
+            nasa_chunk['sotwis_index'] = [
+                coordinate_map[(lat, lon)]
+                for lat, lon in nasa_chunk[['LAT', 'LON']].itertuples(index=False, name=None)
+            ]
+            nasa_chunk.dropna(subset=['sotwis_index'], inplace=True)
+            nasa_chunk['sotwis_index'] = nasa_chunk['sotwis_index'].astype(int)
+            matched_rows += len(nasa_chunk)
+
+            merged_chunk = nasa_chunk.merge(
+                sotwis_to_merge,
+                left_on='sotwis_index',
+                right_index=True,
+            )
+            merged_chunk.drop(columns=['sotwis_index'], inplace=True)
+            merged_chunk.to_csv(
+                partial_output_path,
+                mode='a' if wrote_header else 'w',
+                header=not wrote_header,
+                index=False,
+            )
+            wrote_header = True
+            print(f"Processed chunk {chunk_number}: {input_rows:,} input rows so far.")
+
+        os.replace(partial_output_path, output_path)
+    except Exception:
+        if os.path.exists(partial_output_path):
+            os.remove(partial_output_path)
+        raise
+
+    print(f"Join complete. {matched_rows:,} of {input_rows:,} records matched.")
+    print(f"Integrated dataset created successfully and saved to '{output_path}'")
 
 if __name__ == '__main__':
     merge_datasets()

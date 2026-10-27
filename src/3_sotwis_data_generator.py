@@ -5,8 +5,10 @@ from scipy.spatial import cKDTree
 import os
 import warnings
 
-# Point to the public API location for the warning in modern pandas versions.
-warnings.filterwarnings('ignore', category=pd.errors.SettingWithCopyWarning)
+# Handle pandas warning location differences across versions.
+setting_with_copy_warning = getattr(pd.errors, 'SettingWithCopyWarning', None)
+if setting_with_copy_warning is not None:
+    warnings.filterwarnings('ignore', category=setting_with_copy_warning)
 
 def spatial_imputation_advanced():
     """
@@ -25,6 +27,7 @@ def spatial_imputation_advanced():
     DBSCAN_RADIUS_KM = 75
     DBSCAN_MIN_SAMPLES = 10
     N_NEIGHBORS_FOR_IDW = 5
+    rng = np.random.default_rng(int(os.getenv('SOTWIS_IMPUTATION_SEED', '42')))
 
     # --- 1. File Paths and Data Loading ---
     print("Step 1: Loading and preparing data...")
@@ -67,7 +70,7 @@ def spatial_imputation_advanced():
         if valid_samples.empty:
             return series
         is_null = series.isnull()
-        imputed_values = np.random.choice(valid_samples, size=is_null.sum())
+        imputed_values = rng.choice(valid_samples.to_numpy(), size=is_null.sum())
         series[is_null] = imputed_values
         return series
 

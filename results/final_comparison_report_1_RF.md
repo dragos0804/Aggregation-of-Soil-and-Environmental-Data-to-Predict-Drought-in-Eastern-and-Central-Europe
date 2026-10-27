@@ -8,6 +8,8 @@ The key metrics are:
 
 |                       |   Drought F1-Score |   Weighted Avg F1-Score |
 |:----------------------|-------------------:|------------------------:|
-| SOTWIS-Only           |             0.3655 |                  0.5815 |
-| NASA-Only             |             0.1692 |                  0.7374 |
-| Fused (SOTWIS + NASA) |             0.1857 |                  0.7485 |
+| SOTWIS-Only           |             0.3574 |                  0.5942 |
+| NASA-Only             |             0.3456 |                  0.7438 |
+| Fused (SOTWIS + NASA) |             0.3313 |                  0.7946 |
+
+The regenerated run changes the interpretation materially. The NASA-Only Random Forest is no longer weak on the drought class; it now reaches a drought F1-score of 0.3456 while preserving stronger overall reliability than the soil-only baseline. The fused Random Forest remains the most reliable of the three in weighted terms, but its drought-class F1-score stays below the NASA-Only configuration, indicating that simple feature fusion does not automatically improve minority-class detection for the tree-based model.
